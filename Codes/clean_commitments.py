@@ -9,11 +9,17 @@ try:
         config = json.load(f)
         PLANT_CODES = config.get('plant_codes', ['742'])
         TARGET_PRODUCT = config.get('product_category', 'CRCA')
+        P_CODES = config.get('p_codes', [])
+        if isinstance(TARGET_PRODUCT, str):
+            TARGET_PRODUCTS = [p.strip().upper() for p in TARGET_PRODUCT.split(',')]
+        else:
+            TARGET_PRODUCTS = [p.upper() for p in TARGET_PRODUCT]
 except Exception:
     PLANT_CODES = ['742']
-    TARGET_PRODUCT = 'CRCA'
+    TARGET_PRODUCTS = ['CRCA']
+    P_CODES = []
 
-def standardize_names(names_series, threshold=0.85):
+def standardize_names(names_series, threshold=0.90):
     """Merges customer names that are highly similar"""
     unique_names = names_series.dropna().unique()
     standard_map = {}
@@ -96,7 +102,8 @@ def clean_commitments_data(input_dir, output_file):
                 'Vertical': get_col(df, ['vertical']),
                 'Thk': get_col(df, ['thk']) or get_col(df, ['thick']),
                 'Width': get_col(df, ['width']),
-                'Planned GR Target': get_col(df, ['planned', 'gr']) or get_col(df, ['total', 'gr'])
+                'Planned GR Target': get_col(df, ['planned', 'gr']) or get_col(df, ['total', 'gr']),
+                'Sales Org': get_col(df, ['sale', 'org'])
             }
             
             col_map = {k: v for k, v in col_map.items() if v is not None}
@@ -105,31 +112,38 @@ def clean_commitments_data(input_dir, output_file):
                 print(f"  Skipping {os.path.basename(file)}: Missing critical columns (Product or Planned GR Target).")
                 continue
 
-            df['Product Clean'] = df[col_map['Product']].astype(str).str.strip().str.upper()
-            df = df[df['Product Clean'] == TARGET_PRODUCT.upper()]
+            if 'P Code' in col_map and len(P_CODES) > 0:
+                df['P Code Clean'] = df[col_map['P Code']].astype(str).str.strip().str.upper()
+                df = df[df['P Code Clean'].isin(P_CODES)]
+            else:
+                df['Product Clean'] = df[col_map['Product']].astype(str).str.strip().str.upper()
+                df = df[df['Product Clean'].isin(TARGET_PRODUCTS)]
             
             if len(df) == 0:
-                print(f"  Skipping {os.path.basename(file)}: No '{TARGET_PRODUCT}' data found.")
+                print(f"  Skipping {os.path.basename(file)}: No matching data found (filtered).")
                 continue
                 
+            # FIX INDEX ALIGNMENT BUG: Reset index before creating a new dataframe
+            df = df.reset_index(drop=True)
+            
             clean_df = pd.DataFrame()
             clean_df['Month'] = [month] * len(df)
 
-            # Extract and Filter Plant Code
+            # Do NOT filter by Plant for Commitments, the user wants the total CRCA GR
             if 'Plant' in col_map:
                 clean_df['Plant'] = df[col_map['Plant']].astype(str).str.replace(r'\.0$', '', regex=True).str.strip().str.lstrip('0')
-                clean_df = clean_df[clean_df['Plant'].isin(PLANT_CODES)]
             else:
                 clean_df['Plant'] = 'Unknown'
-
-            if len(clean_df) == 0:
-                print(f"  Skipping {os.path.basename(file)}: No data found for selected plants.")
-                continue
 
             for tgt, src in col_map.items():
                 if tgt == 'Product': continue
                 if tgt == 'Plant': continue
                 clean_df[tgt] = df[src].copy()
+                
+            if 'Sales Org' in clean_df.columns:
+                clean_df['Sales Org'] = clean_df['Sales Org'].replace(r'^\s*$', 'free stocks', regex=True).fillna('free stocks')
+            else:
+                clean_df['Sales Org'] = 'free stocks'
                 
             if 'Combo' not in clean_df.columns and 'SO No' in clean_df.columns and 'Item No' in clean_df.columns:
                 clean_df['Combo'] = clean_df['SO No'].astype(str).str.replace(r'\.0$', '', regex=True) + '-' + clean_df['Item No'].astype(str).str.replace(r'\.0$', '', regex=True)

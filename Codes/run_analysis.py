@@ -20,13 +20,27 @@ def main():
 
     product_cat = prompt_with_default("Enter Product Category", "CRCA")
 
-    pcode_input = prompt_with_default("Enter P Codes separated by comma", "C01, C06")
+    # Load mapping to automatically suggest P Codes
+    suggested_pcodes = "C01, C06"
+    try:
+        with open("product_mapping.json", "r") as f:
+            mapping = json.load(f)
+            codes = [k for k, v in mapping.items() if str(v).upper() == product_cat.upper()]
+            if codes:
+                suggested_pcodes = ", ".join(codes)
+    except Exception:
+        pass
+
+    pcode_input = prompt_with_default(f"Enter P Codes for {product_cat} (separated by comma)", suggested_pcodes)
     p_codes = [p.strip() for p in pcode_input.split(",")]
+
+    prod_file = prompt_with_default("Enter Production Data Excel file", "Production_Data.XLSX")
 
     config = {
         "plant_codes": plant_codes,
         "product_category": product_cat,
-        "p_codes": p_codes
+        "p_codes": p_codes,
+        "production_file": prod_file
     }
 
     print("\nSaving configuration...")

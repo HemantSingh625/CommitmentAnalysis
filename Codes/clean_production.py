@@ -1,21 +1,30 @@
 #!/usr/bin/env python3
 import pandas as pd
 import json
+
 try:
     with open('config.json', 'r') as f:
         config = json.load(f)
         PLANT_CODES = config.get('plant_codes', ['742'])
-        P_CODES = config.get('p_codes', ['C01', 'C06'])
+        TARGET_PRODUCT = config.get('product_category', 'CRCA')
+        P_CODES = config.get('p_codes', [])
+        PROD_FILE = config.get('production_file', '742.XLSX')
+        if isinstance(TARGET_PRODUCT, str):
+            TARGET_PRODUCTS = [p.strip().upper() for p in TARGET_PRODUCT.split(',')]
+        else:
+            TARGET_PRODUCTS = [p.upper() for p in TARGET_PRODUCT]
 except Exception:
     PLANT_CODES = ['742']
-    P_CODES = ['C01', 'C06']
+    TARGET_PRODUCTS = ['CRCA']
+    P_CODES = []
+    PROD_FILE = '742.XLSX'
 
 import difflib
 import sys
 import warnings
 warnings.filterwarnings('ignore')
 
-def standardize_names(names_series, threshold=0.85):
+def standardize_names(names_series, threshold=0.90):
     """Merges customer names that are highly similar"""
     unique_names = names_series.dropna().unique()
     standard_map = {}
@@ -72,11 +81,17 @@ def clean_production_data(input_file, output_file):
         'Posting Date': get_col(df, ['posting', 'date']),
         'Customer Name': get_col(df, ['cust', 'name']),
         'SO No': get_col(df, ['so', 'no']) or get_col(df, ['so/str']),
-        'Item No': get_col(df, ['item', 'no'])
+        'Item No': get_col(df, ['item', 'no']),
+        'Sales Org': get_col(df, ['sales', 'organization']) or get_col(df, ['sale', 'org'])
     }
     col_map = {k: v for k, v in col_map.items() if v is not None}
 
     print(f"Filtering for Plant {PLANT_CODES} and P Codes {P_CODES}...")
+    
+    if 'Sales Org' in col_map:
+        df['Sales Org'] = df[col_map['Sales Org']].replace(r'^\s*$', 'free stocks', regex=True).fillna('free stocks')
+    else:
+        df['Sales Org'] = 'free stocks'
     
     # 1. Filter P Code strictly
     if 'P Code' in col_map:
@@ -103,6 +118,10 @@ def clean_production_data(input_file, output_file):
     if 'Customer Name' in col_map:
         print("Standardizing overlapping customer names...")
         df['Clean Customer Name'] = standardize_names(df[col_map['Customer Name']])
+        
+    # 5. Create SO-Item Combo
+    if 'SO No' in col_map and 'Item No' in col_map:
+        df['SO-Item Combo'] = df[col_map['SO No']].astype(str).str.replace(r'\.0$', '', regex=True) + '-' + df[col_map['Item No']].astype(str).str.replace(r'\.0$', '', regex=True)
 
     print(f"Writing clean data to {output_file}...")
     with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
@@ -123,6 +142,6 @@ def clean_production_data(input_file, output_file):
     print(f"Phase 1 Complete! Total rows saved: {df.shape[0]}")
 
 if __name__ == "__main__":
-    input_file = "Production_Data.XLSX" 
+    input_file = PROD_FILE
     output_file = "Cleaned_Production_Data.xlsx"
     clean_production_data(input_file, output_file)

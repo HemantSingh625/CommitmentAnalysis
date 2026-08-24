@@ -5,3 +5,18 @@ __pycache__/
 .venv
 venv/
 env/
+build/
+dist/
+*.exe
+*.zip
+*.spec
+Agent/
+
+# Ignore local data files to protect company data
+Production Data/
+Cleaned_Data/
+results/
+monthly_commitments/
+*.xlsx
+*.xls
+*.html
