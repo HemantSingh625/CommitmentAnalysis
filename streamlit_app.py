@@ -81,9 +81,15 @@ if st.button("Generate Dashboard", type="primary"):
                         # Execute in fresh namespace
                         exec(code, {"__name__": "__main__"})
                 
-                # Verify outputs
+                # Verify intermediate outputs to provide better error messages
+                if not os.path.exists("Cleaned_Production_Data.xlsx"):
+                    raise Exception("Failed during Phase 1: Production data could not be processed. Please check if the uploaded production file is correct.")
+                if not os.path.exists("Cleaned_Commitments_Data.xlsx"):
+                    raise Exception("Failed during Phase 2: Commitment data could not be processed. Please check if the uploaded commitment files are correct Excel files.")
+                
+                # Verify final outputs
                 if not os.path.exists("Master_Compliance_Report.xlsx"):
-                    raise Exception("Pipeline finished but output Excel was not created.")
+                    raise Exception("Failed during Phase 3: Pipeline finished but output Excel was not created.")
                 
                 # Read outputs into memory for download
                 with open("Master_Compliance_Report.xlsx", "rb") as f:

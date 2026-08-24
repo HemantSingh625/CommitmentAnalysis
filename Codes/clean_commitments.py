@@ -39,7 +39,9 @@ def standardize_names(names_series, threshold=0.90):
     return names_series.map(standard_map).fillna("UNKNOWN")
 
 def clean_commitments_data(input_dir, output_file):
-    files = glob.glob(os.path.join(input_dir, '*.xlsx')) + glob.glob(os.path.join(input_dir, '*.xls'))
+    files = []
+    for ext in ['*.xlsx', '*.xls', '*.XLSX', '*.XLS']:
+        files.extend(glob.glob(os.path.join(input_dir, ext)))
     files = [f for f in files if not os.path.basename(f).startswith('~')]
     
     if not files:
