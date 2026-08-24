@@ -32,15 +32,15 @@ def build_master_report():
         commit_xls = pd.ExcelFile(COMMIT_FILE)
         prod_xls = pd.ExcelFile(PROD_FILE)
     except Exception as e:
-        print(f"Error reading files: {e}")
-        return
+        raise Exception(f"Phase 3 Error: Could not read intermediate files. {e}")
 
     c_sheets = [s for s in commit_xls.sheet_names if s in MONTHS]
     p_sheets = [s for s in prod_xls.sheet_names if s in MONTHS]
 
-    if not c_sheets or not p_sheets:
-        print("Error: Could not find valid month sheets.")
-        return
+    if not c_sheets:
+        raise Exception("Phase 3 Error: The cleaned commitment data contains no valid month sheets. This means none of your uploaded commitment files matched the selected Profile (e.g., wrong P Codes or Plants).")
+    if not p_sheets:
+        raise Exception("Phase 3 Error: The cleaned production data contains no valid month sheets. This means your Production file had 0 rows matching the selected Profile (Check if you selected '743&744' but uploaded the '742' file).")
 
     print("Concatenating monthly data...")
     commit_dfs = []
