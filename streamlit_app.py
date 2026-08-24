@@ -39,24 +39,33 @@ if st.button("Generate Dashboard", type="primary"):
                     with open(os.path.join(comm_dir, c_file.name), "wb") as f:
                         f.write(c_file.getbuffer())
                         
-                # Write config.json
+                # Dynamically load ALL P Codes from product_mapping.json
+                mapping_path = os.path.join(original_cwd, "Codes", "product_mapping.json")
+                with open(mapping_path, "r") as f:
+                    pcode_map = json.load(f)
+                    
                 if profile == "742 CRCA":
+                    # For CRCA, find all P Codes that map to 'CRCA'
+                    crca_codes = [k for k, v in pcode_map.items() if str(v).strip().upper() == "CRCA"]
                     config = {
                         "profile_name": profile,
                         "production_file": prod_filename,
                         "plant": ["742"],
                         "plant_codes": ["742"],
                         "product_category": "CRCA",
-                        "p_codes": ["B47", "C01", "B01", "C06", "B48", "B49", "B50", "C24", "C41"]
+                        "p_codes": crca_codes
                     }
                 else:
+                    # For PPGL/GL, find all P Codes that map to PPGL, GL, GP, PPGI, Galv
+                    target_cats = ["PPGL", "GL", "GP", "PPGI", "GALV.", "GALV.-GC", "GALV", "PPGI-EMBO"]
+                    ppgl_codes = [k for k, v in pcode_map.items() if str(v).strip().upper() in target_cats]
                     config = {
                         "profile_name": profile,
                         "production_file": prod_filename,
                         "plant": ["743", "744", 743, 744],
                         "plant_codes": ["743", "744"],
                         "product_category": "PPGL,GL,GI,PPGI",
-                        "p_codes": ["B04", "C05", "B03", "C02", "B18", "B20", "B06", "B11", "B17", "B14", "C04", "B22"]
+                        "p_codes": ppgl_codes
                     }
                     
                 with open(os.path.join(temp_dir, "config.json"), "w") as f:
