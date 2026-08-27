@@ -21,6 +21,7 @@ if st.button("Generate Dashboard", type="primary"):
     elif not comm_files:
         st.error("Please upload at least one Monthly Commitment file.")
     else:
+        original_cwd = os.getcwd()
         with st.spinner("Analyzing and Generating Dashboard... Please wait."):
             try:
                 # Create a temp directory
@@ -72,7 +73,6 @@ if st.button("Generate Dashboard", type="primary"):
                     json.dump(config, f, indent=4)
                     
                 # Run the pipeline just like app.py does
-                original_cwd = os.getcwd()
                 codes_dir = os.path.join(original_cwd, "Codes")
                 os.chdir(temp_dir)
                 
